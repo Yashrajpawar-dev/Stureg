@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "270573752344",
+    "project_id": "stureg-1afea",
+    "storage_bucket": "stureg-1afea.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:270573752344:android:279fbe6ba5b93abc39f36d",
+        "android_client_info": {
+          "package_name": "com.example.stureg"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAlciqw7onJ5v_h8xetplFcek1e-WKQjR8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
