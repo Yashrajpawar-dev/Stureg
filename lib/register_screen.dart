@@ -1,7 +1,7 @@
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'spiderman_theme.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -55,30 +55,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  InputDecoration fieldDecoration(
-    String label,
-    IconData icon,
-  ) {
+  InputDecoration fieldDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon),
+      labelStyle: const TextStyle(color: SpiderColors.textSecondary),
+      prefixIcon: Icon(icon, color: SpiderColors.spiderRed),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: SpiderColors.cardDark,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFF2E3B5E)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Color(0xFFE2E0EB),
-        ),
+        borderSide: const BorderSide(color: Color(0xFF2E3B5E)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(
-          color: Color(0xFF6558D3),
+          color: SpiderColors.spiderRed,
           width: 2,
         ),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFFF5252), width: 1.5),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFFF5252), width: 2),
       ),
     );
   }
@@ -87,7 +92,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (value == null || value.trim().isEmpty) {
       return 'This field is required';
     }
-
     return null;
   }
 
@@ -98,7 +102,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       case 'invalid-email':
         return 'Please enter a valid email address.';
       case 'weak-password':
-        return 'Please choose a stronger password.';
+        return 'Please choose a stronger password (minimum 6 characters).';
       case 'operation-not-allowed':
         return 'Email/password registration is not enabled in Firebase.';
       case 'network-request-failed':
@@ -111,12 +115,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> registerStudent() async {
-    // Validate the form before sending anything to Firebase.
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
     if (selectedCourse == null || selectedSemester == null) {
+      showMessage('Please select your course and semester.');
       return;
     }
 
@@ -131,32 +135,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final email = emailController.text.trim().toLowerCase();
       final password = passwordController.text;
 
-      // 1. Create the account in Firebase Authentication.
-      // Firebase prevents duplicate email accounts.
-      credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
+      credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
       final user = credential.user;
-
       if (user == null) {
         throw Exception('Firebase did not return a user account.');
       }
 
       accountCreated = true;
 
-      // Save the student's name to the Firebase Auth profile.
       await user.updateDisplayName(nameController.text.trim());
 
-      // 2. Save the student profile in Cloud Firestore.
-      // The Auth UID identifies the document.
-      // PRN is ordinary information and is NOT required to be unique.
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .set({
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'uid': user.uid,
         'name': nameController.text.trim(),
         'prn': prnController.text.trim(),
@@ -168,8 +161,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (!mounted) return;
 
-      // No dashboard yet, so return the student to Login.
-      // Sign out so the newly registered student can test Login.
       await FirebaseAuth.instance.signOut();
 
       if (!mounted) return;
@@ -179,22 +170,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
         barrierDismissible: false,
         builder: (dialogContext) {
           return AlertDialog(
-            icon: const Icon(
-              Icons.check_circle_outline,
-              color: Color(0xFF6558D3),
-              size: 48,
+            backgroundColor: SpiderColors.cardDark,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: const BorderSide(color: SpiderColors.spiderRed, width: 1.5),
             ),
-            title: const Text('Registration Successful!'),
+            icon: const SpidermanAppLogo(size: 64, showGlow: false),
+            title: const Text(
+              'Hero Registered!',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             content: const Text(
-              'Your student account has been created. '
-              'You can now log in with your email and password.',
+              'Your student account has been created successfully in the Spider Portal. You can now log in.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: SpiderColors.textSecondary),
             ),
             actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(dialogContext).pop();
-                },
-                child: const Text('Go to Login'),
+              Center(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: SpiderColors.spiderRed,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 12),
+                  ),
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: const Text('Go to Login'),
+                ),
               ),
             ],
           );
@@ -202,7 +208,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       if (!mounted) return;
-
       Navigator.pop(context);
     } on FirebaseAuthException catch (error) {
       if (mounted) {
@@ -212,9 +217,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (mounted) {
         if (accountCreated) {
           showMessage(
-            'Your authentication account was created, but saving '
-            'the student profile failed. Check Firestore rules and '
-            'your connection before trying again.',
+            'Authentication succeeded, but saving profile failed. Check Firestore rules and try again.',
           );
         } else {
           showMessage('Registration failed. Please try again.');
@@ -231,269 +234,326 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   void showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(
+        backgroundColor: SpiderColors.darkRed,
+        content: Text(message, style: const TextStyle(color: Colors.white)),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F6FC),
+      backgroundColor: SpiderColors.darkBlue,
       appBar: AppBar(
-        title: const Text('Student Registration'),
-        backgroundColor: const Color(0xFFF7F6FC),
+        title: const Text('Register Student'),
+        backgroundColor: SpiderColors.cardDark,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Create Account',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF211D43),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Enter your details to join the Student Portal.',
-                  style: TextStyle(color: Colors.black54),
-                ),
-                const SizedBox(height: 28),
-
-                // Full name
-                TextFormField(
-                  controller: nameController,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: fieldDecoration(
-                    'Full Name',
-                    Icons.person_outline,
-                  ),
-                  validator: requiredValidator,
-                ),
-                const SizedBox(height: 18),
-
-                // PRN: not unique
-                TextFormField(
-                  controller: prnController,
-                  decoration: fieldDecoration(
-                    'PRN Number',
-                    Icons.badge_outlined,
-                  ),
-                  validator: requiredValidator,
-                ),
-                const SizedBox(height: 18),
-
-                // Email: unique through Firebase Authentication
-                TextFormField(
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
-                  decoration: fieldDecoration(
-                    'Email Address',
-                    Icons.email_outlined,
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Enter your email address';
-                    }
-
-                    if (!RegExp(
-                      r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                    ).hasMatch(value.trim())) {
-                      return 'Enter a valid email address';
-                    }
-
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 18),
-
-                // Course
-                DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  decoration: fieldDecoration(
-                    'Course',
-                    Icons.school_outlined,
-                  ),
-                  items: courses.map((course) {
-                    return DropdownMenuItem<String>(
-                      value: course,
-                      child: Text(course),
-                    );
-                  }).toList(),
-                  onChanged: isLoading
-                      ? null
-                      : (value) {
-                          setState(() {
-                            selectedCourse = value;
-                          });
-                        },
-                  validator: (value) {
-                    if (value == null) {
-                      return 'Select your course';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 18),
-
-                // Semester
-                DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  decoration: fieldDecoration(
-                    'Semester',
-                    Icons.calendar_month_outlined,
-                  ),
-                  items: semesters.map((semester) {
-                    return DropdownMenuItem<String>(
-                      value: semester,
-                      child: Text(semester),
-                    );
-                  }).toList(),
-                  onChanged: isLoading
-                      ? null
-                      : (value) {
-                          setState(() {
-                            selectedSemester = value;
-                          });
-                        },
-                  validator: (value) {
-                    if (value == null) {
-                      return 'Select your semester';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 18),
-
-                // Password
-                TextFormField(
-                  controller: passwordController,
-                  obscureText: hidePassword,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  decoration: fieldDecoration(
-                    'Password',
-                    Icons.lock_outline,
-                  ).copyWith(
-                    suffixIcon: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          hidePassword = !hidePassword;
-                        });
-                      },
-                      icon: Icon(
-                        hidePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                      ),
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Enter a password';
-                    }
-                    if (value.length < 6) {
-                      return 'Use at least 6 characters';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 18),
-
-                // Confirm password
-                TextFormField(
-                  controller: confirmPasswordController,
-                  obscureText: hideConfirmPassword,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  decoration: fieldDecoration(
-                    'Confirm Password',
-                    Icons.lock_reset_outlined,
-                  ).copyWith(
-                    suffixIcon: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          hideConfirmPassword = !hideConfirmPassword;
-                        });
-                      },
-                      icon: Icon(
-                        hideConfirmPassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                      ),
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Confirm your password';
-                    }
-                    if (value != passwordController.text) {
-                      return 'Passwords do not match';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 28),
-
-                // Submit
-                SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: ElevatedButton(
-                    onPressed: isLoading ? null : registerStudent,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6558D3),
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.grey,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: isLoading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Create Account',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                Center(
-                  child: TextButton(
-                    onPressed: isLoading
-                        ? null
-                        : () => Navigator.pop(context),
-                    child: const Text(
-                      'Already have an account? Login',
-                      style: TextStyle(
-                        color: Color(0xFF6558D3),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+      body: Stack(
+        children: [
+          // Background subtle web
+          Positioned.fill(
+            child: CustomPaint(
+              painter: SpiderWebPainter(
+                webColor: SpiderColors.spiderRed.withValues(alpha: 0.06),
+                showCornerWeb: true,
+                showCenterWeb: false,
+              ),
             ),
           ),
-        ),
+
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: Form(
+                key: _formKey,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Header Badge with App Logo
+                      Row(
+                        children: [
+                          const SpidermanAppLogo(size: 60, showGlow: true),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                Text(
+                                  'CREATE HERO PROFILE',
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'Join the Stureg Spider Portal',
+                                  style: TextStyle(
+                                    color: SpiderColors.textSecondary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Full Name
+                      TextFormField(
+                        controller: nameController,
+                        textCapitalization: TextCapitalization.words,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: fieldDecoration(
+                          'Full Name',
+                          Icons.person_outline_rounded,
+                        ),
+                        validator: requiredValidator,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // PRN Number
+                      TextFormField(
+                        controller: prnController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: fieldDecoration(
+                          'PRN Number',
+                          Icons.badge_outlined,
+                        ),
+                        validator: requiredValidator,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Email Address
+                      TextFormField(
+                        controller: emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        autocorrect: false,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: fieldDecoration(
+                          'Email Address',
+                          Icons.alternate_email_rounded,
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Enter your email address';
+                          }
+                          if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                              .hasMatch(value.trim())) {
+                            return 'Enter a valid email address';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Course Dropdown
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        dropdownColor: SpiderColors.cardDarkElevated,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: fieldDecoration(
+                          'Course / Branch',
+                          Icons.school_outlined,
+                        ),
+                        items: courses.map((course) {
+                          return DropdownMenuItem<String>(
+                            value: course,
+                            child: Text(
+                              course,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: isLoading
+                            ? null
+                            : (value) {
+                                setState(() {
+                                  selectedCourse = value;
+                                });
+                              },
+                        validator: (value) {
+                          if (value == null) {
+                            return 'Select your course';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Semester Dropdown
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        dropdownColor: SpiderColors.cardDarkElevated,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: fieldDecoration(
+                          'Semester',
+                          Icons.calendar_month_outlined,
+                        ),
+                        items: semesters.map((semester) {
+                          return DropdownMenuItem<String>(
+                            value: semester,
+                            child: Text(
+                              semester,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: isLoading
+                            ? null
+                            : (value) {
+                                setState(() {
+                                  selectedSemester = value;
+                                });
+                              },
+                        validator: (value) {
+                          if (value == null) {
+                            return 'Select your semester';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Password
+                      TextFormField(
+                        controller: passwordController,
+                        obscureText: hidePassword,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: fieldDecoration(
+                          'Password',
+                          Icons.lock_outline_rounded,
+                        ).copyWith(
+                          suffixIcon: IconButton(
+                            onPressed: () {
+                              setState(() {
+                                hidePassword = !hidePassword;
+                              });
+                            },
+                            icon: Icon(
+                              hidePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              color: SpiderColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Enter a password';
+                          }
+                          if (value.length < 6) {
+                            return 'Use at least 6 characters';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Confirm Password
+                      TextFormField(
+                        controller: confirmPasswordController,
+                        obscureText: hideConfirmPassword,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: fieldDecoration(
+                          'Confirm Password',
+                          Icons.shield_outlined,
+                        ).copyWith(
+                          suffixIcon: IconButton(
+                            onPressed: () {
+                              setState(() {
+                                hideConfirmPassword = !hideConfirmPassword;
+                              });
+                            },
+                            icon: Icon(
+                              hideConfirmPassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              color: SpiderColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Confirm your password';
+                          }
+                          if (value != passwordController.text) {
+                            return 'Passwords do not match';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 28),
+
+                      // Create Account Button
+                      ElevatedButton(
+                        onPressed: isLoading ? null : registerStudent,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: SpiderColors.spiderRed,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          elevation: 6,
+                          shadowColor: SpiderColors.spiderRed.withValues(alpha: 0.5),
+                        ),
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'CREATE ACCOUNT',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Already have account
+                      Center(
+                        child: TextButton(
+                          onPressed:
+                              isLoading ? null : () => Navigator.pop(context),
+                          child: const Text(
+                            'Already have an account? Login',
+                            style: TextStyle(
+                              color: SpiderColors.electricBlue,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
